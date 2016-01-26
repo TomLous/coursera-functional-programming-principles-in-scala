@@ -8,13 +8,15 @@
       </compiler-classpath>
     </properties>
     <CLASSES>
-      <root url="jar://$PROJECT_DIR$/00.example/lib_managed/jars/org.scala-lang/scala-library/scala-library-2.11.5.jar!/" />
       <root url="jar://$USER_HOME$/.ivy2/cache/org.scala-lang/scala-library/jars/scala-library-2.11.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/01.recfun/lib_managed/jars/org.scala-lang/scala-library/scala-library-2.11.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib_managed/jars/org.scala-lang/scala-library/scala-library-2.11.5.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
-      <root url="jar://$PROJECT_DIR$/00.example/lib_managed/srcs/org.scala-lang/scala-library/scala-library-2.11.5-sources.jar!/" />
       <root url="jar://$USER_HOME$/.ivy2/cache/org.scala-lang/scala-library/srcs/scala-library-2.11.5-sources.jar!/" />
+      <root url="jar://$PROJECT_DIR$/01.recfun/lib_managed/srcs/org.scala-lang/scala-library/scala-library-2.11.5-sources.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib_managed/srcs/org.scala-lang/scala-library/scala-library-2.11.5-sources.jar!/" />
     </SOURCES>
   </library>
 </component>
