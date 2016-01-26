@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/assignment.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/assignment.iml" />
-      <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/assignment-build.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/assignment-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/00.example.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/00.example.iml" />
+      <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/00.example-build.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/00.example-build.iml" />
       <module fileurl="file://$PROJECT_DIR$/coursera-functional-programming-principles-in-scala.iml" filepath="$PROJECT_DIR$/coursera-functional-programming-principles-in-scala.iml" />
       <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/recitations.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/recitations.iml" />
       <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/recitations-build.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/recitations-build.iml" />
