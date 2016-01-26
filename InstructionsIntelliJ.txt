@@ -1,0 +1,5 @@
+1. New Project -> Scala (project name)
+2. VCS -> Import into version control -> share on github
+3. Copy eclipse source into project
+4. File -> New -> Module from existing source
+5.
