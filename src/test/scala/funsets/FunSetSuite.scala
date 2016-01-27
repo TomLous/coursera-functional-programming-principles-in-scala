@@ -110,5 +110,26 @@ class FunSetSuite extends FunSuite {
     }
   }
 
+  test("union contains all elements of each set (2)") {
+    new TestSets {
+      val s = union(union(s1, s2),union(s3, s2))
+
+      assert(contains(s, 1), "Union 1")
+      assert(contains(s, 2), "Union 2")
+      assert(contains(s, 3), "Union 3")
+    }
+  }
+
+  test("diff contains difference between set 1 and set 2") {
+    new TestSets {
+      val s = union(union(s1, s2),s3)
+      var sd = diff(s, s3)
+
+      assert(contains(sd, 1), "Diff 1")
+      assert(contains(sd, 2), "Diff 2")
+      assert(!contains(sd, 3), "Diff 3")
+    }
+  }
+
 
 }
