@@ -2,13 +2,10 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/01.recfun/.idea/modules/01.recfun-build.iml" filepath="$PROJECT_DIR$/01.recfun/.idea/modules/01.recfun-build.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/assignment.iml" filepath="$PROJECT_DIR$/.idea/modules/assignment.iml" />
       <module fileurl="file://$PROJECT_DIR$/01.recfun/.idea/modules/assignment-build.iml" filepath="$PROJECT_DIR$/01.recfun/.idea/modules/assignment-build.iml" />
       <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/recitations.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/recitations.iml" />
       <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/recitations-build.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/recitations-build.iml" />
-      <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/root-00-example-build.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/root-00-example-build.iml" />
-      <module fileurl="file://$PROJECT_DIR$/01.recfun/.idea/modules/root-01-recfun-build.iml" filepath="$PROJECT_DIR$/01.recfun/.idea/modules/root-01-recfun-build.iml" />
       <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/submission.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/submission.iml" />
       <module fileurl="file://$PROJECT_DIR$/00.example/.idea/modules/submission-build.iml" filepath="$PROJECT_DIR$/00.example/.idea/modules/submission-build.iml" />
     </modules>
