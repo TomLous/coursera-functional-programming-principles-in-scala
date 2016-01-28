@@ -79,5 +79,10 @@ object test{
   contains(sd3,2)
   contains(sd3,3)
 
+  val su5 = map(su4, x=>x*2)
+  FunSets.toString(su4)
+  FunSets.toString(su5)
 
+  val su6 = map(su4, x=>(x*3) -5)
+  FunSets.toString(su6)
 }

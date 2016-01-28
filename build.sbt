@@ -12,7 +12,7 @@ libraryDependencies += "junit" % "junit" % "4.10" % "test"
 
 // This setting defines the project to which a solution is submitted. When creating a
 // handout, the 'createHandout' task will make sure that its value is correct.
-submitProjectName := "recfun"
+submitProjectName := "funsets"
 
 libraryDependencies ++= {
   val c = currentProject.value

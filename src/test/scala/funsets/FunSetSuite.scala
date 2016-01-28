@@ -131,5 +131,41 @@ class FunSetSuite extends FunSuite {
     }
   }
 
+  test("forall checks") {
+    new TestSets {
+      val s = union(union(s1, s2),s3)
+
+      assert(forall(s, x=> x > 0), "All elements in set are > 0")
+      assert(!forall(s, x=> x % 2 ==1 ), "Not all elements are even")
+      assert(!forall(s, x=> x > 1000 ), "No elements are > 1000")
+
+
+    }
+  }
+
+  test("exists checks") {
+    new TestSets {
+      val s = union(union(s3, s2),s1)
+
+      assert(exists(s, x=> x > 0), "There are elements > 0")
+      assert(exists(s, x=> x % 2 ==1 ), "Some elements are even")
+      assert(exists(s, x=> x % 2 ==0 ), "Some elements are odd")
+      assert(!exists(s, x=> x > 1000 ), "No elements are > 1000")
+
+
+    }
+  }
+
+  test("map checks") {
+    new TestSets {
+      val s = union(union(s3, s1),s2)
+      val m = map(s, x=> x*2)
+      val m2 = map(s, x=> -21)
+
+      assert(forall(m, x=> x % 2 ==0), "All mapped elements are even")
+      assert(contains(m2, -21), "All mapped elements are -21")
+    }
+  }
+
 
 }
