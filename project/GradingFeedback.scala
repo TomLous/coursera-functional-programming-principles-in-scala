@@ -1,81 +1,42 @@
+import sbt.{Logger, Level}
+
 import collection.mutable.ListBuffer
-import org.apache.commons.lang3.StringEscapeUtils
 
-object GradingFeedback {
+class GradingFeedback {
 
-  private val feedbackSummary = new ListBuffer[String]()
-  private val feedbackDetails = new ListBuffer[String]()
+  def maxTestScore = maxScore * (1 - styleScoreRatio)
 
-  private def addSummary(msg: String) { feedbackSummary += msg; feedbackSummary += "\n\n" }
-  private def addDetails(msg: String) { feedbackDetails += msg; feedbackDetails += "\n\n" }
+  def maxStyleScore = maxScore * styleScoreRatio
 
-  /**
-   * Converts the string to HTML - coursera displays the feedback in an html page.
-   */
-  def feedbackString(uuid: String, html: Boolean = true) = {
-    val total = totalGradeMessage(totalScore) + "\n\n"
-    // trim removes the newlines at the end
-    val s = (total + feedbackSummary.mkString + feedbackDetails.mkString + uniqueGradeId(uuid) + "\n\n").trim
-    if (html)
-      "<pre>"+ StringEscapeUtils.escapeHtml4(s) +"</pre>"
-    else
-      s
-  }
-
-  private var vTestScore: Double = 0d
-  private var   vStyleScore: Double = 0d
   def totalScore = vTestScore + vStyleScore
 
-  private var vMaxTestScore: Double = 0d
-  private var vMaxStyleScore: Double = 0d
-  def maxTestScore = vMaxTestScore
-  def maxStyleScore = vMaxStyleScore
+  def maxTotalScore = maxTestScore + maxStyleScore
 
-  // a string obtained from coursera when downloading an assignment. it has to be
-  // used again when uploading the grade.
-  var apiState: String = ""
+  def feedbackString =
+    s"""|${totalGradeMessage(totalScore)}
+        |
+        |
+        |${feedbackSummary.mkString("\n\n")}
+        |
+        |${feedbackDetails.mkString("\n")}""".stripMargin
 
   /**
-   * `failed` means that there was an unexpected error during grading. This includes
-   *  - student's code does not compile
-   *  - our tests don't compile (against the student's code)
-   *  - crash while executing ScalaTest (not test failures, but problems trying to run the tests!)
-   *  - crash while executing the style checker (again, not finding style problems!)
-   *
-   * When failed is `true`, later grading stages will not be executed: this is handled automatically
-   * by SBT, tasks depending on a failed one are not run.
-   *
-   * However, these dependent tasks still fail (i.e. mapR on them is invoked). The variable below
-   * allows us to know if something failed before. In this case, we don't add any more things to
-   * the log. (see `ProgFunBuild.handleFailure`)
-   */
-  private var failed = false
+    * `failed` means that there was an unexpected error during grading. This includes
+    * - student's code does not compile
+    * - our tests don't compile (against the student's code)
+    * - crash while executing ScalaTest (not test failures, but problems trying to run the tests!)
+    * - crash while executing the style checker (again, not finding style problems!)
+    *
+    * When failed is `true`, later grading stages will not be executed: this is handled automatically
+    * by SBT, tasks depending on a failed one are not run.
+    *
+    * However, these dependent tasks still fail (i.e. mapR on them is invoked). The variable below
+    * allows us to know if something failed before. In this case, we don't add any more things to
+    * the log. (see `ProgFunBuild.handleFailure`)
+    */
   def isFailed = failed
 
-  def initialize() {
-    feedbackSummary.clear()
-    feedbackDetails.clear()
-    vTestScore = 0d
-    vStyleScore = 0d
-    apiState = ""
-    failed = false
-  }
-
-  def setMaxScore(maxScore: Double, styleScoreRatio: Double) {
-    vMaxTestScore = maxScore * (1-styleScoreRatio)
-    vMaxStyleScore = maxScore * styleScoreRatio
-  }
-
-
   /* Methods to build up the feedback log */
-
-  def downloadUnpackFailed(log: String) {
-    failed = true
-    addSummary(downloadUnpackFailedMessage)
-    addDetails("======== FAILURES WHILE DOWNLOADING OR EXTRACTING THE SUBMISSION ========")
-    addDetails(log)
-  }
-
 
   def compileFailed(log: String) {
     failed = true
@@ -91,14 +52,13 @@ object GradingFeedback {
     addDetails(log)
   }
 
-
-
   def allTestsPassed() {
     addSummary(allTestsPassedMessage)
     vTestScore = maxTestScore
   }
 
   def testsFailed(log: String, score: Double) {
+    failed = true
     addSummary(testsFailedMessage(score))
     vTestScore = score
     addDetails("======== LOG OF FAILED TESTS ========")
@@ -117,8 +77,6 @@ object GradingFeedback {
     addDetails(log)
   }
 
-
-
   def perfectStyle() {
     addSummary(perfectStyleMessage)
     vStyleScore = maxStyleScore
@@ -131,16 +89,44 @@ object GradingFeedback {
     addDetails(log)
   }
 
+  def unpackFailed(log: String) {
+    failed = true
+    addSummary(unpackFailedMessage)
+    addDetails("======== FAILURES WHILE EXTRACTING THE SUBMISSION ========")
+    addDetails(log)
+  }
 
+  def setMaxScore(newMaxScore: Double, newStyleScoreRatio: Double): Unit = {
+    maxScore = newMaxScore
+    styleScoreRatio = newStyleScoreRatio
+  }
+
+  private var maxScore: Double = _
+  private var styleScoreRatio: Double = _
+
+  private var vTestScore: Double = 0d
+  private var vStyleScore: Double = 0d
+
+  private val feedbackSummary = new ListBuffer[String]()
+  private val feedbackDetails = new ListBuffer[String]()
+
+  private var failed = false
+
+  private def addSummary(msg: String): Unit =
+    feedbackSummary += msg
+
+  private def addDetails(msg: String): Unit =
+    feedbackDetails += msg
 
   /* Feedback Messages */
 
-  private val downloadUnpackFailedMessage =
-    """We were not able to download your submission from the coursera servers, or extracting the
-      |archive containing your source code failed.
+  private val unpackFailedMessage =
+    """Extracting the archive containing your source code failed.
       |
-      |If you see this error message as your grade feedback, please contact one of the teaching
-      |assistants. See below for a detailed error log.""".stripMargin
+      |If you see this error message as your grade feedback, please verify that you used the unchanged
+      |`sbt submit` command to upload your assignment and verify that you have the latest assignment
+      |handout. If you did all of the above and grading still fails, please check the forums to see if
+      |this issue has already been reported. See below for a detailed error log.""".stripMargin
 
   private val compileFailedMessage =
     """We were not able to compile the source code you submitted. This is not expected to happen,
@@ -154,7 +140,6 @@ object GradingFeedback {
       |Take a careful look at the compiler output below - maybe you can find out what the problem is.
       |
       |If you cannot find a solution, ask for help on the discussion forums on the course website.""".stripMargin
-
 
   private val testCompileFailedMessage =
     """We were not able to compile our tests, and therefore we could not correct your submission.
@@ -174,7 +159,6 @@ object GradingFeedback {
       |
       |If you cannot find a solution, ask for help on the discussion forums on the course website.""".stripMargin
 
-
   private def testsFailedMessage(score: Double) =
     """The code you submitted did not pass all of our tests: your submission achieved a score of
       |%.2f out of %.2f in our tests.
@@ -188,12 +172,12 @@ object GradingFeedback {
       | - Take another very careful look at the assignment description. Try to find out if you
       |   misunderstood parts of it. While reading through the assignment, write more tests.
       |
-      |Below you can find a short feedback for every individual test that failed.""".stripMargin.format(score, vMaxTestScore)
+      |Below you can find a short feedback for every individual test that failed.""".stripMargin.format(score, maxTestScore)
 
   // def so that we read the right value of vMaxTestScore (initialize modifies it)
   private def allTestsPassedMessage =
     """Your solution passed all of our tests, congratulations! You obtained the maximal test
-      |score of %.2f.""".stripMargin.format(vMaxTestScore)
+      |score of %.2f.""".stripMargin.format(maxTestScore)
 
   private val testExecutionFailedMessage =
     """An error occurred while running our tests on your submission.
@@ -204,17 +188,46 @@ object GradingFeedback {
   // def so that we read the right value of vMaxStyleScore (initialize modifies it)
   private def perfectStyleMessage =
     """Our automated style checker tool could not find any issues with your code. You obtained the maximal
-      |style score of %.2f.""".stripMargin.format(vMaxStyleScore)
-
+      |style score of %.2f.""".stripMargin.format(maxStyleScore)
 
   private def styleProblemsMessage(score: Double) =
     """Our automated style checker tool found issues in your code with respect to coding style: it
-      |computed a style score of %.2f out of %.2f for your submission. See below for detailed feedback.""".stripMargin.format(score, vMaxStyleScore)
-
+      |computed a style score of %.2f out of %.2f for your submission. See below for detailed feedback.""".stripMargin.format(score, maxStyleScore)
 
   private def totalGradeMessage(score: Double) =
-    """Your overall score for this assignment is %.2f out of %.2f""".format(score, vMaxTestScore + vMaxStyleScore)
+    """Your overall score for this assignment is %.2f out of %.2f""".format(score, maxTestScore + maxStyleScore)
 
-  // This is added because the feedback is getting overwritten by someone.
-  private def uniqueGradeId(s: String) = """Unique identifier of this grade is %s. This identifier will uniquely identify your assignment throughout the grading system.""".format(s)
+}
+
+/**
+  * Logger to capture compiler output, test output
+  */
+
+object RecordingLogger extends Logger {
+  private val buffer = ListBuffer[String]()
+
+  def hasErrors = buffer.nonEmpty
+
+  def readAndClear() = {
+    val res = buffer.mkString("\n")
+    buffer.clear()
+    res
+  }
+
+  def clear() {
+    buffer.clear()
+  }
+
+  def log(level: Level.Value, message: => String) =
+    if (level == Level.Error) {
+      buffer += message
+    }
+
+  // we don't log success here
+  def success(message: => String) = ()
+
+  // invoked when a task throws an exception. invoked late, when the exception is logged, i.e.
+  // just before returning to the prompt. therefore we do nothing: storing the exception in the
+  // buffer would happen *after* the `handleFailure` reads the buffer.
+  def trace(t: => Throwable) = ()
 }

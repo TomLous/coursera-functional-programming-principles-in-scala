@@ -3,6 +3,10 @@ import Keys._
 import sys.process.{Process => SysProc, ProcessLogger}
 import java.util.concurrent._
 import collection.mutable.ListBuffer
+import scala.pickling.Defaults._
+import scala.pickling.json._
+
+final case class GradingSummary(score: Int, maxScore: Int, feedback: String)
 
 object ScalaTestRunner {
 
@@ -11,7 +15,7 @@ object ScalaTestRunner {
     private var lines = 0
     private var lengthCropped = false
 
-    override def toString() = buf.mkString("\n").trim
+    override def toString = buf.mkString("\n").trim
 
     def append(s: String) =
       if (lines < Settings.maxOutputLines) {
@@ -25,7 +29,7 @@ object ScalaTestRunner {
                   |This should not have an impact on your grade or the grading process; however it is
                   |bad style to leave `print` statements in production code, so consider removing and
                   |replacing them by proper tests.
-                  |""".stripMargin
+                  | """.stripMargin
               buf.prepend(msg)
               lengthCropped = true
             }
@@ -41,16 +45,18 @@ object ScalaTestRunner {
             |This should not have an impact on your grade or the grading process; however it is
             |bad style to leave `print` statements in production code, so consider removing and
             |replacing them by proper tests.
-            |""".stripMargin
+            | """.stripMargin
         buf.prepend(msg)
         lines += 1
       }
   }
 
-  private def forkProcess(proc: SysProc, timeout: Int) {
+  private def forkProcess(proc: SysProc, timeout: Int): Unit = {
     val executor = Executors.newSingleThreadExecutor()
     val future: Future[Unit] = executor.submit(new Callable[Unit] {
-      def call { proc.exitValue() }
+      def call {
+        proc.exitValue()
+      }
     })
     try {
       future.get(timeout, TimeUnit.SECONDS)
@@ -63,106 +69,139 @@ object ScalaTestRunner {
     }
   }
 
-  private def runPathString(file: File) = file.getAbsolutePath().replace(" ", "\\ ")
+  private def runPathString(file: File) = file.getAbsolutePath.replace(" ", "\\ ")
 
-  private def extractWeights(s: String, logError: String => Unit) = {
+  private def invokeScalaTestInSeparateProcess(scalaTestCommand: List[String], logError: String => Unit): String = {
+    val out = new LimitedStringBuffer()
+    var proc: SysProc = null
     try {
-      val (nums, rest) = s.span(c => c != '\n')
-      val List(grade, max) = nums.split(';').toList
-      (grade.toInt, max.toInt, rest.drop(1))
+      proc = SysProc(scalaTestCommand).run(ProcessLogger(out.append, out.append))
+      forkProcess(proc, Settings.scalaTestTimeout)
+    } catch {
+      case e: TimeoutException =>
+        val msg = "Timeout when running ScalaTest\n" + out.toString()
+        logError(msg)
+        proc.destroy()
+        sys.error(msg)
+      case e: Throwable =>
+        val msg = "Error occurred while running the ScalaTest command\n" + e.toString + "\n" + out.toString()
+        logError(msg)
+        proc.destroy()
+        throw e
+    } finally {
+      println(out.toString)
+      if (proc != null) {
+        println("Exit process: " + proc.exitValue())
+      }
+    }
+
+    val runLog = out.toString
+    runLog
+  }
+
+  private def computeSummary(outFilePath: String, classpathString: String, logError: String => Unit): String = {
+    val summaryFilePath = outFilePath + ".summary"
+    val summaryCmd = "java" ::
+      "-cp" :: classpathString ::
+      "ch.epfl.lamp.grading.GradingSummaryRunner" ::
+      outFilePath :: summaryFilePath :: Nil
+    var summaryProc: SysProc = null
+    try {
+      summaryProc = SysProc(summaryCmd).run()
+      summaryProc.exitValue
     } catch {
       case e: Throwable =>
-        val msg = "Could not extract weight from grading feedback\n"+ s
+        val msg = "Error occurred while running the test ScalaTest summary command\n" + e.toString
+        logError(msg)
+        summaryProc.destroy()
+        throw e
+    } /* finally { // Useful for debugging when Coursera kills our grader
+      println(scala.io.Source.fromFile(outFilePath).getLines().mkString("\n"))
+      println(scala.io.Source.fromFile(summaryFilePath).getLines().mkString("\n"))
+    }*/
+    // Example output:
+    // {
+    //   "$type": "ch.epfl.lamp.grading.Entry.SuiteStart",
+    //   "suiteId": "ParallelCountChangeSuite::50"
+    // }
+    summaryFilePath
+  }
+
+  def runScalaTest(classpath: Classpath, testClasses: File, outfile: File,
+                   resourceFiles: List[File], javaSystemProperties: Traversable[(String, String)],
+                   logError: String => Unit, instragentPath: String) = {
+
+    // invoke scalatest in the separate process
+    val classpathString = classpath map { case Attributed(file) => file.getAbsolutePath } mkString ":"
+    val cmd = scalaTestCommand(testClasses, outfile, resourceFiles, javaSystemProperties, classpathString, instragentPath)
+    val runLog = invokeScalaTestInSeparateProcess(cmd, logError)
+
+    // compute the summary
+    val summaryFilePath = computeSummary(outfile.getAbsolutePath, classpathString, logError)
+    val summary = unpickleSummary(logError, runLog, summaryFilePath)
+
+    // cleanup all the files
+    IO.delete(new File(summaryFilePath) :: outfile :: Nil)
+
+    (summary.score, summary.maxScore, summary.feedback, runLog)
+  }
+
+  private def unpickleSummary(logError: (String) => Unit, runLog: String, summaryFileStr: String): GradingSummary = {
+    try {
+      io.Source.fromFile(summaryFileStr).getLines.mkString("\n").unpickle[GradingSummary]
+    } catch {
+      case e: Throwable =>
+        val msg = "Error occured while reading ScalaTest summary file\n" + e.toString + "\n" + runLog
         logError(msg)
         throw e
     }
   }
 
-
-  def runScalaTest(classpath: Classpath, testClasses: File, outfile: File, policyFile: File, resourceFiles: List[File], logError: String => Unit) = {
-    val classpathString = classpath map {
-      case Attributed(file) => file.getAbsolutePath()
-    } mkString(":")
-
-    val testRunpath = runPathString(testClasses)
-
-    val outfileStr = outfile.getAbsolutePath
-    val policyFileStr = policyFile.getAbsolutePath
+  private def scalaTestCommand(testClasses: File, outfile: File, resourceFiles: List[File], javaSystemProperties: Traversable[(String, String)], classpathString: String,
+                               instragentPath: String): List[String] = {
+    val testRunPath = runPathString(testClasses)
     val resourceFilesString = resourceFiles.map(_.getAbsolutePath).mkString(":")
     // Deleting the file is helpful: it makes reading the file below crash in case ScalaTest doesn't
     // run as expected. Problem is, it's hard to detect if ScalaTest ran successfully or not: it
     // exits with non-zero if there are failed tests, and also if it crashes...
-    new java.io.File(outfileStr).delete()
+    outfile.delete()
 
-    def prop(name: String, value: String) = "-D"+ name +"="+ value
+    def prop(name: String, value: String) = "-D" + name + "=" + value
 
     // we don't specify "-w packageToTest" - the build file only compiles the tests
     // for the current project. so we don't need to do it again here.
-    val cmd = "java" ::
-      "-Djava.security.manager" ::
-      prop("java.security.policy", policyFileStr) ::
-      prop(Settings.scalaTestReportFileProperty, outfileStr) ::
+
+    // NOTICE: DON'T start test in parallel, it would break profiling. Check the
+    // implementation of @InstrumentedSuite for more details.
+    "java" ::
+      s"-javaagent:$instragentPath" ::
+      prop(Settings.scalaTestReportFileProperty, outfile.getAbsolutePath) ::
       prop(Settings.scalaTestIndividualTestTimeoutProperty, Settings.individualTestTimeout.toString) ::
       prop(Settings.scalaTestReadableFilesProperty, resourceFilesString) ::
-      prop(Settings.scalaTestDefaultWeigthProperty, Settings.scalaTestDefaultWeigth.toString) ::
+      prop(Settings.scalaTestDefaultWeightProperty, Settings.scalaTestDefaultWeight.toString) ::
+      javaSystemProperties.map((prop _).tupled).toList :::
       "-cp" :: classpathString ::
       "org.scalatest.tools.Runner" ::
-      "-R" :: testRunpath ::
-      "-C" :: "grading.CourseraReporter" ::
+      "-R" :: testRunPath ::
+      "-C" :: Settings.scalaTestReporter ::
       Nil
-
-    // process deadlocks in Runner.PassFailReporter.allTestsPassed on runDoneSemaphore.acquire() when
-    // something is wrong, e.g. when there's an error.. So we have to run it with a timeout.
-
-    val out = new LimitedStringBuffer()
-    var p: SysProc = null
-    try {
-      p = SysProc(cmd).run(ProcessLogger(out.append(_), out.append(_)))
-      forkProcess(p, Settings.scalaTestTimeout)
-    } catch {
-      case e: TimeoutException =>
-        val msg = "Timeout when running ScalaTest\n"+ out.toString()
-        logError(msg)
-        p.destroy()
-        sys.error(msg)
-
-      case e: Throwable =>
-        val msg = "Error occurred while running the ScalaTest command\n"+ e.toString +"\n"+ out.toString()
-        logError(msg)
-        p.destroy()
-        throw e
-    }
-
-
-    val feedbackFileContent = try {
-      io.Source.fromFile(outfileStr).mkString
-    } catch {
-      case e: Throwable =>
-        val msg = "Error occured while reading the output file of ScalaTest\n"+ e.toString +"\n"+ out.toString()
-        logError(msg)
-        throw e
-    }
-
-    val (score, maxScore, feedback) = extractWeights(feedbackFileContent, logError)
-    val runLog = out.toString()
-    (score, maxScore, feedback, runLog)
   }
 
-  def scalaTestGrade(classpath: Classpath, testClasses: File, outfile: File, policyFile: File, resourceFiles: List[File]) {
-    val (score, maxScore, feedback, runLog) = runScalaTest(classpath, testClasses, outfile, policyFile, resourceFiles, GradingFeedback.testExecutionFailed)
-      if (score == maxScore) {
-      GradingFeedback.allTestsPassed()
+  def scalaTestGrade(gradingReporter: GradingFeedback, classpath: Classpath, testClasses: File, outfile: File,
+                     resourceFiles: List[File], javaSystemProperties: Traversable[(String, String)], instragentPath: String): Unit = {
+
+    val (score, maxScore, feedback, runLog) =
+      runScalaTest(classpath, testClasses, outfile, resourceFiles, javaSystemProperties, gradingReporter.testExecutionFailed, instragentPath)
+
+    if (score == maxScore) {
+      gradingReporter.allTestsPassed()
     } else {
-      val scaledScore = GradingFeedback.maxTestScore * score / maxScore
-      GradingFeedback.testsFailed(feedback, scaledScore)
+      val scaledScore = gradingReporter.maxTestScore * score / maxScore
+      gradingReporter.testsFailed(feedback, scaledScore)
     }
 
-    // The output `out` should in principle be empty: the reporter we use writes its results to a file.
-    // however, `out` contains valuable logs in case scalatest fails. We need to put them into the student
-    // feedback in order to have a chance of debugging problems.
-
     if (!runLog.isEmpty) {
-      GradingFeedback.testExecutionDebugLog(runLog)
+      gradingReporter.testExecutionDebugLog(runLog)
     }
   }
 }

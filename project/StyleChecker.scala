@@ -2,40 +2,40 @@ import sbt.File
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import org.scalastyle._
-import Settings._
+import com.typesafe.config.ConfigFactory
 
 object StyleChecker {
   val maxResult = 100
 
-  class CustomTextOutput[T <: FileSpec]() extends Output[T] {
-    private val messageHelper = new MessageHelper(this.getClass().getClassLoader())
+  class CustomTextOutput[T <: FileSpec](stream: PrintStream) extends Output[T] {
+    private val messageHelper = new MessageHelper(ConfigFactory.load())
 
     var fileCount: Int = _
     override def message(m: Message[T]): Unit = m match {
       case StartWork() =>
       case EndWork() =>
       case StartFile(file) =>
-        print("Checking file " + file + "...")
+        stream.print("Checking file " + file + "...")
         fileCount = 0
       case EndFile(file) =>
-        if (fileCount == 0) println(" OK!")
+        if (fileCount == 0) stream.println(" OK!")
       case StyleError(file, clazz, key, level, args, line, column, customMessage) =>
         report(line, column, messageHelper.text(level.name),
-               Output.findMessage(messageHelper, clazz, key, args, customMessage))
+          Output.findMessage(messageHelper, key, args, customMessage))
       case StyleException(file, clazz, message, stacktrace, line, column) =>
         report(line, column, "error", message)
     }
 
     private def report(line: Option[Int], column: Option[Int], level: String, message: String) {
-      if (fileCount == 0) println("")
+      if (fileCount == 0) stream.println("")
       fileCount += 1
-      println("  " + fileCount + ". " + level + pos(line, column) + ":")
-      println("     " + message)
+      stream.println("  " + fileCount + ". " + level + pos(line, column) + ":")
+      stream.println("     " + message)
     }
 
     private def pos(line: Option[Int], column: Option[Int]): String = line match {
-      case Some(line) => " at line " + line + (column match {
-        case Some(column) => " character " + column
+      case Some(lineNumber) => " at line " + lineNumber + (column match {
+        case Some(columnNumber) => " character " + columnNumber
         case None => ""
       })
       case None => ""
@@ -47,41 +47,21 @@ object StyleChecker {
     scala.math.max(maxResult - penalties, 0)
   }
 
-  def assess(allSources: Seq[File]): (String, Int) = {
-    val reactive = allSources.exists{ f =>
-      val path = f.getAbsolutePath
-      path.contains("quickcheck") ||
-      path.contains("nodescala") ||
-      path.contains("suggestions") ||
-      path.contains("actorbintree") ||
-      path.contains("kvstore")
-    }
-    val tweak = if (reactive) "_reactive" else ""
-
-    val configFile = new File("project/scalastyle_config" + tweak + ".xml").getAbsolutePath
-
-    val sources = allSources.filterNot{ f =>
-      val path = f.getAbsolutePath
-      path.contains("interpreter") ||
-      path.contains("fetchtweets") ||
-      path.contains("simulations")
-    }
+  def assess(sources: Seq[File], styleSheetPath: String): (String, Int) = {
+    val configFile = new File(styleSheetPath).getAbsolutePath
 
     val messages = new ScalastyleChecker().checkFiles(
       ScalastyleConfiguration.readFromXml(configFile),
       Directory.getFiles(None, sources))
 
     val output = new ByteArrayOutputStream()
-    val outputResult = Console.withOut(new PrintStream(output)) {
-      new CustomTextOutput().output(messages)
-    }
+    val outputResult = new CustomTextOutput(new PrintStream(output)).output(messages)
 
-    val msg =
-      output.toString +
-      "Processed " + outputResult.files + " file(s)\n" +
-      "Found " + outputResult.errors + " errors\n" +
-      "Found " + outputResult.warnings + " warnings\n" +
-      (if (outputResult.errors+outputResult.warnings > 0) "Consult the style guide at %s/wiki/ScalaStyleGuide".format(baseURL("progfun-006")) else "")
+    val msg = s"""${output.toString}
+                 |Processed ${outputResult.files}  file(s)
+                 |Found ${outputResult.errors} errors
+                 |Found ${outputResult.warnings} warnings
+                 |""".stripMargin
 
     (msg, score(outputResult))
   }

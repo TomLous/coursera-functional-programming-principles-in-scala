@@ -1,3 +1,4 @@
+
 import java.io.File
 
 package object common {
@@ -12,12 +13,12 @@ package object common {
    */
   type *** = Any
 
-  
+
   /**
    * Get a child of a file. For example,
-   * 
+   *
    *   subFile(homeDir, "b", "c")
-   * 
+   *
    * corresponds to ~/b/c
    */
   def subFile(file: File, children: String*) = {

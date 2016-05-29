@@ -2,12 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/assignment.iml" filepath="$PROJECT_DIR$/.idea/modules/assignment.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/assignment-build.iml" filepath="$PROJECT_DIR$/.idea/modules/assignment-build.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/recitations.iml" filepath="$PROJECT_DIR$/.idea/modules/recitations.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/recitations-build.iml" filepath="$PROJECT_DIR$/.idea/modules/recitations-build.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/submission.iml" filepath="$PROJECT_DIR$/.idea/modules/submission.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/submission-build.iml" filepath="$PROJECT_DIR$/.idea/modules/submission-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/root.iml" filepath="$PROJECT_DIR$/.idea/modules/root.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/root-build.iml" filepath="$PROJECT_DIR$/.idea/modules/root-build.iml" />
     </modules>
   </component>
 </project>
