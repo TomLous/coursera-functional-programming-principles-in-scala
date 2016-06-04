@@ -28,12 +28,20 @@ object Test{
     (c, l) <- s.flatMap(w => Anagrams.wordOccurrences(w)).groupBy(_._1)
   ) yield (c, l.map(_._2).sum)
 
-  s map (w => Anagrams.wordOccurrences(w)
+  s map (w => Anagrams.wordOccurrences(w))
 
 
   val dictionary: List[String] = loadDictionary
 
-  dictionary.groupBy(s => Anagrams.wordOccurrences(s))
+   val lookup = dictionary.groupBy(s => Anagrams.wordOccurrences(s)) withDefaultValue (List())
+
+  lookup(Anagrams.wordOccurrences("eat"))
+
+  lookup(Anagrams.wordOccurrences("q"))
+
+
+
+
 
   //
 
