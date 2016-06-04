@@ -1,6 +1,6 @@
 
 
-object Test{
+object Test {
 
   import forcomp.Anagrams
   import forcomp._
@@ -12,9 +12,9 @@ object Test{
     map(x => (x._1, x._2.length))
 
 
-  for(
+  for (
     (c, s) <- word.groupBy(c => c.toLower)
-  ) yield (c,s.length)
+  ) yield (c, s.length)
 
   Anagrams.wordOccurrences(word)
 
@@ -24,21 +24,39 @@ object Test{
 
   s.flatMap(w => Anagrams.wordOccurrences(w)).groupBy(_._1).mapValues(_.map(_._2).sum)
 
-  for(
+  for (
     (c, l) <- s.flatMap(w => Anagrams.wordOccurrences(w)).groupBy(_._1)
   ) yield (c, l.map(_._2).sum)
 
   s map (w => Anagrams.wordOccurrences(w))
 
 
-  val dictionary: List[String] = loadDictionary
+  //  val dictionary: List[String] = loadDictionary
+  //
+  //   val lookup = dictionary.groupBy(s => Anagrams.wordOccurrences(s)) withDefaultValue (List())
+  //
+  //  lookup(Anagrams.wordOccurrences("eat"))
+  //
+  //  lookup(Anagrams.wordOccurrences("q"))
 
-   val lookup = dictionary.groupBy(s => Anagrams.wordOccurrences(s)) withDefaultValue (List())
 
-  lookup(Anagrams.wordOccurrences("eat"))
+  val occ = List(('a', 2), ('b', 2))
+  type Occurrences = List[(Char, Int)]
 
-  lookup(Anagrams.wordOccurrences("q"))
+  val l ={
+    for (
+    (c, ci) <- occ;
+    cit <- 1 to ci
+  ) yield (c, cit)
+  }
 
+  l.toSet.subsets.map(_.groupBy(c => c._1)).toList
+
+
+  val ocs = occ.map( x => (for(i <- 1 to (x._2)) yield (x._1,i)).toList)
+  ocs.foldRight(List[Occurrences](Nil))((x,y) => y ++ (for(i <- x; j <- y) yield (i :: j)))
+
+    //.groupBy(c => c._1)
 
 
 
